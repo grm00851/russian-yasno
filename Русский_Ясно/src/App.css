@@ -262,3 +262,65 @@ input, textarea, select { border-radius: 10px; }
   .topic-lab-controls label, .topic-lab-controls select, .topic-lab-controls .primary-btn { width: 100%; min-width: 0; }
   .exam-content p { min-height: 0; }
 }
+
+/* MOBILE NAVIGATION + FOCUSED STUDY SCREENS */
+.mobile-menu-toggle { display:none; border:1px solid var(--line); background:var(--panel); color:var(--text); width:40px; height:40px; border-radius:12px; padding:10px; align-items:center; justify-content:center; flex-direction:column; gap:4px; flex:0 0 auto; }
+.mobile-menu-toggle span { display:block; width:17px; height:2px; border-radius:2px; background:currentColor; }
+.mobile-menu-backdrop { display:none; }
+.lesson-focus-backdrop { position:fixed; inset:0; z-index:40; display:flex; align-items:center; justify-content:center; padding:22px; background:rgba(8,7,14,.72); backdrop-filter:blur(8px); overflow-y:auto; }
+.lesson-detail { width:min(960px,100%); max-height:min(92dvh,1000px); overflow-y:auto; margin:0; padding:26px; border:1px solid var(--line); border-radius:20px; background:var(--panel); color:var(--text); box-shadow:0 28px 90px rgba(0,0,0,.35); }
+.practice-focus-screen,.exam-focus-screen { position:fixed; inset:0; z-index:35; overflow-y:auto; overscroll-behavior:contain; background:var(--bg); color:var(--text); padding:clamp(14px,3vw,34px); }
+.practice-focus-screen { z-index:34; }
+.focus-screen-bar { width:min(1120px,100%); margin:0 auto 18px; min-height:44px; display:flex; align-items:center; justify-content:space-between; gap:12px; border-bottom:1px solid var(--line); padding-bottom:12px; color:var(--muted); font-size:11px; font-weight:800; letter-spacing:.1em; }
+.focus-screen-bar button { border:1px solid var(--line); border-radius:11px; background:var(--panel); color:var(--text); padding:9px 13px; font-size:12px; font-weight:700; }
+.practice-focus-screen>.page-title,.practice-focus-screen>.practice-tabs,.practice-focus-screen>.practice-layout { width:min(1120px,100%); margin-left:auto; margin-right:auto; }
+.practice-focus-screen>.page-title { padding-top:8px; }
+.practice-focus-screen .practice-layout { grid-template-columns:minmax(0,1fr) 280px; align-items:start; }
+.exam-focus-screen { z-index:45; display:flex; justify-content:center; align-items:flex-start; padding:clamp(12px,3vw,36px); }
+.exam-focus-screen .exam-session,.exam-focus-screen .exam-result { width:min(920px,100%); max-width:none; min-height:min(620px,calc(100dvh - 48px)); margin:0 auto; padding:clamp(18px,4vw,42px); border:1px solid var(--line); border-radius:20px; background:var(--panel); box-shadow:var(--shadow); }
+.exam-focus-screen .exam-question { max-width:760px; font-size:clamp(18px,2vw,24px); line-height:1.6; }
+.exam-focus-screen .exam-options { max-width:760px; }
+.exam-focus-screen .answer-option { min-height:58px; font-size:15px; }
+.exam-focus-screen .exam-controls { position:sticky; bottom:0; background:var(--panel); padding:16px 0 4px; }
+.exam-focus-screen .exit-exam { border:1px solid var(--line); border-radius:10px; padding:9px 12px; }
+.exam-focus-screen .exam-time { font-size:15px; font-weight:800; color:var(--purple); white-space:nowrap; }
+.exam-focus-screen .exam-progress-row { font-size:11px; }
+.exam-focus-screen .exam-writing textarea { min-height:240px; font-size:15px; }
+.exam-focus-screen .exam-result { text-align:left; }
+.exam-focus-screen .exam-result>.eyebrow,.exam-focus-screen .exam-result>h2,.exam-focus-screen .exam-result>.score-value,.exam-focus-screen .exam-result>p { text-align:center; }
+.exam-focus-screen .review-row b { font-size:14px; }
+.exam-focus-screen .review-row small,.exam-focus-screen .review-row em { font-size:12px; line-height:1.6; }
+@media (max-width:780px) {
+  .sidebar { width:min(300px,86vw); max-width:300px; padding:22px 17px 16px; transform:translateX(-105%); transition:transform .22s ease; box-shadow:18px 0 55px rgba(0,0,0,.22); z-index:60; }
+  .sidebar.mobile-open { transform:translateX(0); }
+  .brand { padding:0 8px; justify-content:flex-start; margin-bottom:30px; }
+  .brand>span:last-child,.sidebar-label,.track-nav,.sidebar-bottom { display:initial; }
+  .sidebar-label { display:block; }
+  .sidebar nav { display:grid; }
+  .nav-link { justify-content:flex-start; padding:12px 11px; font-size:13px; }
+  .nav-link>span:not(.nav-icon) { display:inline; }
+  .nav-link .nav-dot { display:block; }
+  .track-nav { display:grid; }
+  .sidebar-bottom { display:block; margin-top:auto; }
+  .main-area { margin-left:0; }
+  .topbar { gap:12px; padding:0 14px; }
+  .mobile-menu-toggle { display:flex; }
+  .mobile-menu-backdrop { display:block; position:fixed; inset:0; z-index:55; border:0; background:rgba(7,6,12,.48); }
+  .breadcrumbs { flex:1; min-width:0; }
+}
+@media (max-width:680px) {
+  .practice-focus-screen { padding:12px; }
+  .practice-focus-screen>.practice-layout { grid-template-columns:1fr; }
+  .practice-focus-screen .practice-side { grid-template-columns:1fr; }
+  .practice-focus-screen .upload-card { grid-row:auto; }
+  .lesson-focus-backdrop { padding:8px; align-items:stretch; }
+  .lesson-detail { max-height:none; min-height:100%; padding:17px; border-radius:16px; }
+  .exam-focus-screen { padding:8px; }
+  .exam-focus-screen .exam-session,.exam-focus-screen .exam-result { min-height:calc(100dvh - 16px); padding:16px; border-radius:15px; }
+  .exam-session-top { display:grid; grid-template-columns:1fr auto; gap:10px; }
+  .exam-session-top>div:first-child { min-width:0; }
+  .exam-session-top .exit-exam { grid-column:1/-1; justify-self:start; }
+  .exam-focus-screen .exam-controls { gap:10px; }
+  .exam-focus-screen .exam-controls .primary-btn { max-width:72%; white-space:normal; }
+  .exam-focus-screen .exam-writing textarea { min-height:190px; }
+}

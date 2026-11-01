@@ -1,5 +1,5 @@
 const CACHE_PREFIX = 'slovo-academy'
-const CACHE_NAME = `${CACHE_PREFIX}-v2`
+const CACHE_NAME = `${CACHE_PREFIX}-v3`
 const APP_ENTRY = new URL('./', self.registration.scope).href
 
 self.addEventListener('install', event => {
