@@ -34,6 +34,11 @@ const explanationStopWords = new Set(['это','этот','эта','эти','д�
 function normalizeRussianTerm(word: string) {
  return word.toLocaleLowerCase('ru').replace(/ё/g, 'е').replace(/(иями|ями|ами|его|ого|ему|ому|ыми|ими|иях|ах|ях|иям|ям|ам|ом|ем|ой|ей|ий|ый|ая|яя|ое|ее|ые|ие|ую|юю|а|я|ы|и|у|ю|е|о)$/u, '').slice(0, 7)
 }
+function formatClock(totalSeconds: number) {
+ const minutes = Math.floor(Math.max(0, totalSeconds) / 60)
+ const seconds = Math.max(0, totalSeconds) % 60
+ return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+}
 type ExplanationEvaluation = { ok: boolean; score: number; message: string; criteria: { label: string; score: number; max: number; detail: string }[] }
 function checkLessonExplanation(value: string, lesson: Lesson): ExplanationEvaluation {
  const clean = value.toLocaleLowerCase('ru').replace(/ё/g, 'е')
@@ -41,7 +46,7 @@ function checkLessonExplanation(value: string, lesson: Lesson): ExplanationEvalu
  const uniqueWords = new Set(words)
  const source = [lesson.title, lesson.aim, lesson.rule, lesson.rationale, lesson.explainPrompt, lesson.text.join(' '), lesson.example].join(' ').toLocaleLowerCase('ru').replace(/ё/g, 'е')
  const stop = new Set([...explanationStopWords, 'когда','также','например','значение','является','помогает','которое','которые','может','будет','этого','этому','этими','этим','такого','такой','такие','данном','данные','часть','случае','сначала','затем','нужно','следует','слово','словом'])
- const stem = (word: string) => word.replace(/(иями|ями|ами|его|ого|ему|ому|ыми|ими|иях|ах|ях|иям|ям|ам|ом|ем|ой|ей|ий|ый|ая|яя|ое|ее|ые|ие|ую|юю|а|я|ы|и|у|ю|е|о)$/u, '').slice(0, 8)
+ const stem = (word: string) => normalizeRussianTerm(word)
  const sourceTerms = [...new Set((source.match(/[а-я]{4,}/g) ?? []).filter(w => !stop.has(w)).map(stem).filter(w => w.length >= 4))]
  const answerTerms = [...uniqueWords].filter(w => !stop.has(w)).map(stem).filter(w => w.length >= 4)
  const hits = sourceTerms.filter(term => answerTerms.some(word => word === term || word.startsWith(term) || term.startsWith(word)))
