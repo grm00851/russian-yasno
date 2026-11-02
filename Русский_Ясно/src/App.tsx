@@ -100,7 +100,7 @@ function App() {
  const recognizePhoto = async () => {
   if (!photoFile) return
   setOcrBusy(true); setOcrProgress(0); setOcrMessage('Загружаю русскую модель распознавания…')
-  let worker: { terminate: () => Promise<void> } | undefined
+  let worker: { terminate: () => Promise<unknown>; recognize: (...args: any[]) => Promise<any> } | undefined
   try {
    const { createWorker } = await import('tesseract.js')
    worker = await createWorker('rus', 1, { logger: message => { if (message.status === 'recognizing text') { setOcrMessage('Распознаю текст на устройстве…'); setOcrProgress(Math.round(message.progress * 100)) } else if (message.status === 'loading language traineddata') { setOcrMessage('Загружаю языковые данные…') } } })
