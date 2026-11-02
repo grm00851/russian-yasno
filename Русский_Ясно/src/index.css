@@ -20,3 +20,14 @@ button:disabled { cursor: not-allowed; opacity: .54; }
 html { color-scheme: light dark; }
 :root[data-theme="light"] { color-scheme: light; }
 :root:not([data-theme="light"]) { color-scheme: dark; }
+
+/* Responsive and low-friction interaction defaults */
+html, body, #root { width: 100%; max-width: 100%; }
+body { overflow-x: hidden; }
+img, video, canvas, svg { max-width: 100%; }
+button, input, textarea, select { touch-action: manipulation; }
+@media (max-width: 780px) {
+  html { scroll-behavior: auto; }
+  .lesson-focus-backdrop, .exam-focus-screen, .practice-focus-screen { -webkit-overflow-scrolling: touch; }
+  .lesson-detail { max-height: calc(100dvh - 16px); }
+}
