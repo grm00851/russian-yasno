@@ -204,3 +204,46 @@ body {
     font-size: 12px;
   }
 }
+
+/* Clear selected-answer feedback on desktop and touch screens */
+.answer-option.selected,
+.answer-option.chosen,
+.answer-option[aria-pressed="true"] {
+  display: flex; align-items: center; gap: 12px; text-align: left;
+  border-color: #a78bfa !important;
+  background: linear-gradient(105deg, rgba(124, 92, 210, .28), rgba(124, 92, 210, .12)) !important;
+  color: var(--text) !important;
+  box-shadow: 0 0 0 2px rgba(167, 139, 250, .24), inset 0 0 0 1px rgba(167, 139, 250, .18) !important;
+}
+.answer-option.selected::after,
+.answer-option.chosen::after { content: 'Выбрано'; margin-left: auto; padding-left: 12px; color: #c7b4ff; font-size: 11px; font-weight: 800; white-space: nowrap; }
+:root[data-theme="light"] .answer-option.selected,
+:root[data-theme="light"] .answer-option.chosen,
+:root[data-theme="light"] .answer-option[aria-pressed="true"] {
+  background: #eee8ff !important; color: #38275f !important; border-color: #7654c7 !important;
+  box-shadow: 0 0 0 2px rgba(118, 84, 199, .18) !important;
+}
+:root[data-theme="light"] .answer-option.selected::after,
+:root[data-theme="light"] .answer-option.chosen::after { color: #6848c5; }
+
+/* More breathing room in topic headings and section mini-exams */
+.unit-title { display: flex; align-items: center; gap: 16px; padding: 13px 16px; }
+.unit-title > span { flex: 0 0 34px; width: 34px; min-width: 34px; text-align: center; margin-right: 2px; }
+.unit-title b { flex: 1; min-width: 0; padding-left: 2px; }
+.unit-title small { flex: 0 0 auto; margin-left: 10px; white-space: nowrap; }
+.unit-exam-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin: 10px 0 18px; padding: 13px 16px; border: 1px dashed var(--line); border-radius: 12px; background: var(--panel); }
+.unit-exam-row > div { min-width: 0; display: grid; gap: 4px; }
+.unit-exam-row b { font-size: 13px; }
+.unit-exam-row small { color: var(--muted); font-size: 11px; line-height: 1.45; }
+.unit-exam-row button { flex: 0 0 auto; border: 1px solid #8c73d8; border-radius: 9px; padding: 9px 12px; background: rgba(124, 92, 210, .15); color: var(--text); font-size: 11px; font-weight: 750; }
+.unit-exam-row button:disabled { opacity: .48; cursor: not-allowed; }
+.unit-exam-row.passed { border-style: solid; border-color: rgba(75, 170, 125, .5); background: rgba(55, 130, 95, .09); }
+.unit-exam-row.passed button { border-color: #459b70; color: #70d3a0; }
+@media (max-width: 680px) {
+ .unit-title { gap: 11px; padding: 11px 12px; }
+ .unit-title > span { flex-basis: 30px; width: 30px; min-width: 30px; }
+ .unit-title small { margin-left: 4px; }
+ .unit-exam-row { align-items: stretch; flex-direction: column; padding: 12px; }
+ .unit-exam-row button { width: 100%; min-height: 42px; }
+ .answer-option.selected::after, .answer-option.chosen::after { font-size: 10px; }
+}
