@@ -1,5 +1,5 @@
 const CACHE_PREFIX = 'slovo-academy'
-const CACHE_NAME = `${CACHE_PREFIX}-v6`
+const CACHE_NAME = `${CACHE_PREFIX}-v8`
 const APP_ENTRY = new URL('./', self.registration.scope).href
 
 self.addEventListener('install', event => {
@@ -35,6 +35,8 @@ self.addEventListener('fetch', event => {
       }
     }
 
+    // Hashed build assets are safe to serve cache-first; uncached same-origin
+    // resources are fetched and cached only after a successful basic response.
     const cached = await cache.match(request)
     if (cached) return cached
     try {

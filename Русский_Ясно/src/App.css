@@ -400,3 +400,23 @@ input, textarea, select { border-radius: 10px; }
   margin: 12px 0;
 }
 .explanation-score.success { border-color: #279b69; }
+
+
+/* Accessibility and responsive interaction hardening */
+:where(button, a, input, textarea, select, [role="button"]):focus-visible {
+  outline: 3px solid var(--purple, #9b83ee);
+  outline-offset: 3px;
+}
+button, input, textarea, select { -webkit-tap-highlight-color: transparent; }
+button { touch-action: manipulation; }
+img { max-width: 100%; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}
+@media (max-width: 420px) {
+  .topbar { padding-inline: max(10px, env(safe-area-inset-left)); }
+  .content { padding-left: max(12px, env(safe-area-inset-left)); padding-right: max(12px, env(safe-area-inset-right)); }
+  .exam-focus-screen, .practice-focus-screen { padding-bottom: max(12px, env(safe-area-inset-bottom)); }
+  .lesson-detail { padding: 14px; }
+  .avatar-editor-backdrop { padding: max(10px, env(safe-area-inset-top)) 10px max(10px, env(safe-area-inset-bottom)); }
+}

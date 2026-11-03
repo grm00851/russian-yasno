@@ -11,7 +11,29 @@ type WritingTask = { kind: 'writing'; id: string; number: number; title: string;
 type ExamTask = ChoiceTask | WritingTask
 const storageKey = 'russian-yasno-v2'
 const initial: Saved = { theme: 'dark', name: 'Ученик', done: [], passedUnits: [], lastScore: null, avatar: '', avatarX: 50, avatarY: 50, avatarZoom: 100 }
-const readSaved = (): Saved => { try { const raw = localStorage.getItem(storageKey) || localStorage.getItem('slovesnost-academy-v1'); return { ...initial, ...(raw ? JSON.parse(raw) as Partial<Saved> : {}) } } catch { return initial } }
+const sanitizeSaved = (value: unknown): Saved => {
+ if (!value || typeof value !== 'object') return initial
+ const data = value as Partial<Saved>
+ const validAvatar = typeof data.avatar === 'string' && data.avatar.length <= 1_500_000 && /^data:image\/(?:jpeg|png|webp);base64,[a-z0-9+/=]+$/i.test(data.avatar) ? data.avatar : ''
+ return {
+  ...initial,
+  theme: data.theme === 'light' ? 'light' : 'dark',
+  name: typeof data.name === 'string' ? data.name.replace(/[<>\u0000-\u001f]/g, '').trim().slice(0, 28) || 'Ученик' : initial.name,
+  done: Array.isArray(data.done) ? [...new Set(data.done.filter((item): item is string => typeof item === 'string' && item.length <= 120))].slice(0, 500) : [],
+  passedUnits: Array.isArray(data.passedUnits) ? [...new Set(data.passedUnits.filter((item): item is string => typeof item === 'string' && item.length <= 180))].slice(0, 100) : [],
+  lastScore: typeof data.lastScore === 'number' && Number.isFinite(data.lastScore) ? Math.max(0, Math.min(100, Math.round(data.lastScore))) : null,
+  avatar: validAvatar,
+  avatarX: typeof data.avatarX === 'number' && Number.isFinite(data.avatarX) ? Math.max(0, Math.min(100, data.avatarX)) : 50,
+  avatarY: typeof data.avatarY === 'number' && Number.isFinite(data.avatarY) ? Math.max(0, Math.min(100, data.avatarY)) : 50,
+  avatarZoom: typeof data.avatarZoom === 'number' && Number.isFinite(data.avatarZoom) ? Math.max(100, Math.min(250, data.avatarZoom)) : 100,
+ }
+}
+const readSaved = (): Saved => {
+ try {
+  const raw = localStorage.getItem(storageKey) || localStorage.getItem('slovesnost-academy-v1')
+  return raw ? sanitizeSaved(JSON.parse(raw) as unknown) : initial
+ } catch { return initial }
+}
 const nav: { id: View; icon: string; label: string }[] = [{ id: 'home', icon: '⌂', label: 'Главная' }, { id: 'lessons', icon: '▤', label: 'Уроки' }, { id: 'practice', icon: '✎', label: 'Тренажёры' }, { id: 'exams', icon: '◷', label: 'Экзамены' }, { id: 'progress', icon: '↗', label: 'Прогресс' }]
 const wordCount = (value: string) => value.trim() ? value.trim().split(/\s+/).length : 0
 function makeChoice(lesson: Lesson, number: number): ChoiceTask { return { kind: 'choice', id: `task-${number}-${lesson.id}`, number, title: lesson.title, question: lesson.task, choices: lesson.choices, correct: lesson.correct, rationale: lesson.rationale } }
@@ -19,7 +41,11 @@ function buildExam(route: 'base' | 'oge' | 'ege', variant: number, kind: 'full' 
  const course = tracks.find(track => track.id === route)!
  if (kind === 'topic') return course.lessons.filter(item => item.unit === topic).map((item, index) => makeChoice(item, index + 1))
  const questions: ExamTask[] = []
- if (route === 'base') return questions
+ if (route === 'base') {
+  // Базовый маршрут содержит самостоятельный полный вариант по всем пройденным темам.
+  const lessons = course.lessons
+  return lessons.map((lesson, index) => makeChoice(lesson, index + 1))
+ }
  if (route === 'oge') questions.push({ kind: 'writing', id: `oge-summary-${variant}`, number: 1, title: 'Сжатое изложение', instructions: 'Прослушай текст два раза. Передай каждую микротему, используй приёмы сжатия и сохрани главную мысль. Затем проверь логику, орфографию и пунктуацию.', sourceText: ogeSourceTexts[(variant - 1) % ogeSourceTexts.length], hideSource: true, minWords: 70, rubric: ['Сохранены все микротемы и позиция автора', 'Текст сжат без подмены смысла и логических потерь', 'Объём не менее 70 слов; грамотность проверена'] })
  const firstNumber = route === 'oge' ? 2 : 1
  const lastNumber = route === 'oge' ? 12 : 26
@@ -124,7 +150,15 @@ function App() {
  const practicePrompt = practiceMode === 'dictation' ? dictation.text : practiceMode === 'spelling' ? spelling.masked : punctuation.masked
  const practiceTitle = practiceMode === 'dictation' ? dictation.title : practiceMode === 'spelling' ? spelling.title : punctuation.title
 
- useEffect(() => { localStorage.setItem(storageKey, JSON.stringify(saved)); document.documentElement.dataset.theme = saved.theme }, [saved])
+ useEffect(() => {
+  document.documentElement.dataset.theme = saved.theme
+  try {
+   localStorage.setItem(storageKey, JSON.stringify(saved))
+  } catch (error) {
+   console.warn('Не удалось сохранить прогресс на устройстве', error)
+   setNotice(current => current === 'Не удалось сохранить прогресс: память браузера заполнена или недоступна. Удали фото профиля или освободи место в браузере.' ? current : 'Не удалось сохранить прогресс: память браузера заполнена или недоступна. Удали фото профиля или освободи место в браузере.')
+  }
+ }, [saved])
  useEffect(() => { if (photoUrl) return () => URL.revokeObjectURL(photoUrl) }, [photoUrl])
  useEffect(() => {
   if (view !== 'lessons' || !openedLesson) return
@@ -174,7 +208,13 @@ function App() {
    }
   }
   const newPractice = (mode = practiceMode) => { const seed = practiceSeed + 1; setPracticeSeed(seed); setPracticeMode(mode); setPracticeText(''); setPracticeChecked(false); setNotice(''); if (mode === 'dictation') { setDictation(generateDictation(seed)); setDictationVisible(false) } if (mode === 'spelling') setSpelling(generateSpellingPractice(seed)); if (mode === 'punctuation') setPunctuation(generatePunctuationPractice(seed)) }
- const handlePhoto = (event: ChangeEvent<HTMLInputElement>) => { const file = event.target.files?.[0]; if (!file) return; setPhotoFile(file); setPhotoUrl(URL.createObjectURL(file)); setPracticeChecked(false); setOcrMessage('Фото готово. Нажми «Распознать текст», чтобы перенести запись в поле проверки.') }
+ const handlePhoto = (event: ChangeEvent<HTMLInputElement>) => {
+  const file = event.target.files?.[0]
+  if (!file) return
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) { setOcrMessage('Поддерживаются изображения JPG, PNG и WEBP.'); event.target.value = ''; return }
+  if (file.size > 12 * 1024 * 1024) { setOcrMessage('Изображение слишком большое. Максимальный размер — 12 МБ.'); event.target.value = ''; return }
+  setPhotoFile(file); setPhotoUrl(URL.createObjectURL(file)); setPracticeChecked(false); setOcrMessage('Фото готово. Нажми «Распознать текст», чтобы перенести запись в поле проверки.'); event.target.value = ''
+ }
  const recognizePhoto = async () => {
   if (!photoFile) return
   setOcrBusy(true); setOcrProgress(0); setOcrMessage('Загружаю русскую модель распознавания…')
@@ -237,7 +277,33 @@ function App() {
  }, [mobileMenuOpen, openedLesson, view, examRunning])
  const nextExamTask = () => { if (examIndex < examQuestions.length - 1) setExamIndex(index => index + 1); else finishExam() }
  const say = (text: string, rate = 0.84) => { if (!('speechSynthesis' in window)) { setNotice('В этом браузере нет синтеза речи.'); return } const speech = new SpeechSynthesisUtterance(text); speech.lang = 'ru-RU'; speech.rate = rate; window.speechSynthesis.cancel(); window.speechSynthesis.speak(speech) }
- const handleAvatarChange = (event: ChangeEvent<HTMLInputElement>) => { const file = event.target.files?.[0]; if (!file) return; if (!file.type.startsWith('image/')) { setNotice('Выбери изображение в формате JPG, PNG или WEBP.'); return } if (file.size > 12 * 1024 * 1024) { setNotice('Файл слишком большой. Выбери изображение до 12 МБ.'); return } const reader = new FileReader(); reader.onload = () => { const image = new Image(); image.onload = () => { const canvas = document.createElement('canvas'); const scale = Math.min(1, 640 / Math.max(image.width, image.height)); canvas.width = Math.max(1, Math.round(image.width * scale)); canvas.height = Math.max(1, Math.round(image.height * scale)); const context = canvas.getContext('2d'); if (!context) return; context.drawImage(image, 0, 0, canvas.width, canvas.height); const compressed = canvas.toDataURL('image/jpeg', 0.82); setSaved(value => ({ ...value, avatar: compressed, avatarX: 50, avatarY: 50, avatarZoom: 120 })); setAvatarEditorOpen(true); setNotice('') }; image.src = String(reader.result) }; reader.readAsDataURL(file); event.target.value = '' }
+ const handleAvatarChange = (event: ChangeEvent<HTMLInputElement>) => {
+  const file = event.target.files?.[0]
+  if (!file) return
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) { setNotice('Выбери изображение в формате JPG, PNG или WEBP.'); event.target.value = ''; return }
+  if (file.size > 12 * 1024 * 1024) { setNotice('Файл слишком большой. Выбери изображение до 12 МБ.'); event.target.value = ''; return }
+  const reader = new FileReader()
+  reader.onerror = () => setNotice('Не удалось прочитать изображение. Попробуй другой файл.')
+  reader.onload = () => {
+   const image = new Image()
+   image.onerror = () => setNotice('Файл не удалось открыть как изображение.')
+   image.onload = () => {
+    const canvas = document.createElement('canvas')
+    const scale = Math.min(1, 640 / Math.max(image.width, image.height))
+    canvas.width = Math.max(1, Math.round(image.width * scale)); canvas.height = Math.max(1, Math.round(image.height * scale))
+    const context = canvas.getContext('2d')
+    if (!context) { setNotice('Браузер не смог обработать изображение.'); return }
+    context.drawImage(image, 0, 0, canvas.width, canvas.height)
+    try {
+     const compressed = canvas.toDataURL('image/jpeg', 0.78)
+     setSaved(value => ({ ...value, avatar: compressed, avatarX: 50, avatarY: 50, avatarZoom: 120 }))
+     setAvatarEditorOpen(true); setNotice('')
+    } catch { setNotice('Не удалось подготовить изображение. Попробуй другой файл.') }
+   }
+   image.src = String(reader.result)
+  }
+  reader.readAsDataURL(file); event.target.value = ''
+ }
 
  return <div className="app-shell">
   {mobileMenuOpen && <button className="mobile-menu-backdrop" aria-label="Закрыть меню" onClick={() => setMobileMenuOpen(false)} />}
