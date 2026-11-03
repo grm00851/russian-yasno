@@ -5,12 +5,12 @@ import './readability.css'
 
 type View = 'home' | 'lessons' | 'practice' | 'exams' | 'progress' | 'settings'
 type PracticeMode = 'dictation' | 'spelling' | 'punctuation'
-type Saved = { theme: 'dark' | 'light'; name: string; done: string[]; lastScore: number | null; avatar?: string; avatarX?: number; avatarY?: number; avatarZoom?: number }
+type Saved = { theme: 'dark' | 'light'; name: string; done: string[]; passedUnits?: string[]; lastScore: number | null; avatar?: string; avatarX?: number; avatarY?: number; avatarZoom?: number }
 type ChoiceTask = { kind: 'choice'; id: string; number: number; title: string; question: string; choices: string[]; correct: number; rationale: string }
 type WritingTask = { kind: 'writing'; id: string; number: number; title: string; instructions: string; sourceText?: string; hideSource?: boolean; minWords: number; rubric: string[]; promptOptions?: string[] }
 type ExamTask = ChoiceTask | WritingTask
 const storageKey = 'russian-yasno-v2'
-const initial: Saved = { theme: 'dark', name: 'Ученик', done: [], lastScore: null, avatar: '', avatarX: 50, avatarY: 50, avatarZoom: 100 }
+const initial: Saved = { theme: 'dark', name: 'Ученик', done: [], passedUnits: [], lastScore: null, avatar: '', avatarX: 50, avatarY: 50, avatarZoom: 100 }
 const readSaved = (): Saved => { try { const raw = localStorage.getItem(storageKey) || localStorage.getItem('slovesnost-academy-v1'); return { ...initial, ...(raw ? JSON.parse(raw) as Partial<Saved> : {}) } } catch { return initial } }
 const nav: { id: View; icon: string; label: string }[] = [{ id: 'home', icon: '⌂', label: 'Главная' }, { id: 'lessons', icon: '▤', label: 'Уроки' }, { id: 'practice', icon: '✎', label: 'Тренажёры' }, { id: 'exams', icon: '◷', label: 'Экзамены' }, { id: 'progress', icon: '↗', label: 'Прогресс' }]
 const wordCount = (value: string) => value.trim() ? value.trim().split(/\s+/).length : 0
@@ -83,6 +83,7 @@ function App() {
  const [lessonExplanation, setLessonExplanation] = useState('')
  const [explanationFeedback, setExplanationFeedback] = useState('')
  const [explanationAccepted, setExplanationAccepted] = useState(false)
+ const [lessonCheckSubmitted, setLessonCheckSubmitted] = useState(false)
  const [practiceMode, setPracticeMode] = useState<PracticeMode>('dictation')
  const [dictation, setDictation] = useState(() => generateDictation())
  const [practiceSeed, setPracticeSeed] = useState(0)
@@ -114,7 +115,7 @@ function App() {
  const track = tracks.find(entry => entry.id === trackId)!
  const currentLesson = track.lessons.find(entry => entry.id === selectedLesson) ?? track.lessons[0]
  const firstUncompletedIndex = track.lessons.findIndex(item => !saved.done.includes(item.id))
- const lessonIsLocked = (lesson: Lesson) => { const index = track.lessons.findIndex(item => item.id === lesson.id); return firstUncompletedIndex >= 0 && index > firstUncompletedIndex && !saved.done.includes(lesson.id) }
+ const lessonIsLocked = (lesson: Lesson) => { const index = track.lessons.findIndex(item => item.id === lesson.id); if (saved.done.includes(lesson.id)) return false; const previous = track.lessons[index - 1]; if (track.id !== 'base' && previous && previous.unit !== lesson.unit && !((saved.passedUnits ?? []).includes(`${track.id}:${previous.unit}`))) return true; return firstUncompletedIndex >= 0 && index > firstUncompletedIndex }
  const completion = Math.round(saved.done.filter(id => allLessons.some(item => item.id === id)).length * 100 / totalLessons)
  const examQuestions = useMemo(() => examTrack === 'oge' || examTrack === 'ege' ? buildExam(examTrack, examVariant, examKind, selectedTopic) : [], [examTrack, examVariant, examKind, selectedTopic])
  const currentExamTask = examQuestions[examIndex]
@@ -139,17 +140,34 @@ function App() {
  const go = (next: View) => { setView(next); setOpenedLesson(false); setNotice(''); setMobileMenuOpen(false) }
  const progressByTrack = (id: string) => { const route = tracks.find(entry => entry.id === id); if (!route || !route.lessons.length) return 0; return Math.round(route.lessons.filter(item => saved.done.includes(item.id)).length * 100 / route.lessons.length) }
  const chooseTrack = (id: 'base' | 'oge' | 'ege') => { const route = tracks.find(entry => entry.id === id); if (!route || !route.lessons.length) { setNotice('В этой программе пока нет доступных уроков.'); return } setTrackId(id); setSelectedLesson(route.lessons[0].id); setOpenedLesson(false); setView('lessons'); setMobileMenuOpen(false) }
- const openLesson = (lesson: Lesson, id: 'base' | 'oge' | 'ege') => { const route = tracks.find(entry => entry.id === id)!; const firstPending = route.lessons.find(item => !saved.done.includes(item.id)); const targetIndex = route.lessons.findIndex(item => item.id === lesson.id); const pendingIndex = firstPending ? route.lessons.findIndex(item => item.id === firstPending.id) : route.lessons.length; if (targetIndex > pendingIndex && !saved.done.includes(lesson.id)) { setTrackId(id); setView('lessons'); setNotice(`Сначала пройди урок «${firstPending?.title ?? 'предыдущий урок'}». Следующие уроки откроются после зачёта.`); setOpenedLesson(false); return } setTrackId(id); setSelectedLesson(lesson.id); setLessonAnswer(null); setLessonExplanation(''); setExplanationFeedback(''); setExplanationAccepted(saved.done.includes(lesson.id)); setOpenedLesson(true); setView('lessons'); setMobileMenuOpen(false) }
+ const openLesson = (lesson: Lesson, id: 'base' | 'oge' | 'ege') => { const route = tracks.find(entry => entry.id === id)!; const firstPending = route.lessons.find(item => !saved.done.includes(item.id)); const targetIndex = route.lessons.findIndex(item => item.id === lesson.id); const pendingIndex = firstPending ? route.lessons.findIndex(item => item.id === firstPending.id) : route.lessons.length; if (targetIndex > pendingIndex && !saved.done.includes(lesson.id)) { setTrackId(id); setView('lessons'); setNotice(`Сначала пройди урок «${firstPending?.title ?? 'предыдущий урок'}». Следующие уроки откроются после зачёта.`); setOpenedLesson(false); return } setTrackId(id); setSelectedLesson(lesson.id); setLessonAnswer(null); setLessonExplanation(''); setExplanationFeedback(''); setExplanationAccepted(saved.done.includes(lesson.id)); setLessonCheckSubmitted(false); setOpenedLesson(true); setView('lessons'); setMobileMenuOpen(false) }
+  const checkLessonAll = () => {
+   setLessonCheckSubmitted(true)
+   if (lessonAnswer === null || !lessonExplanation.trim()) {
+    setExplanationAccepted(false); setExplanationFeedback('Выбери вариант ответа и напиши объяснение, затем проверь всё одной кнопкой.'); return
+   }
+   if (lessonAnswer !== currentLesson.correct) {
+    setExplanationAccepted(false); setExplanationFeedback(`Ответ пока неверный. ${currentLesson.rationale}`); return
+   }
+   const result = checkLessonExplanation(lessonExplanation, currentLesson)
+   setExplanationAccepted(result.ok); setExplanationFeedback(`${result.message}\n\nТестовый ответ: верно.`)
+  }
   const completeLesson = () => {
-   if (lessonAnswer !== currentLesson.correct) { setNotice('Сначала выбери правильный ответ. Разбор правила находится под вариантами.'); return }
-   const explanationResult = checkLessonExplanation(lessonExplanation, currentLesson)
-   if (!explanationResult.ok) { setExplanationAccepted(false); setExplanationFeedback(explanationResult.message); setNotice(explanationResult.message); return }
-   setSaved(value => ({ ...value, done: value.done.includes(currentLesson.id) ? value.done : [...value.done, currentLesson.id] }))
+   if (lessonAnswer !== currentLesson.correct || !explanationAccepted) { setNotice('Сначала успешно проверь тестовый ответ и письменное объяснение одной кнопкой.'); return }
+   const updatedDone = saved.done.includes(currentLesson.id) ? saved.done : [...saved.done, currentLesson.id]
+   setSaved(value => ({ ...value, done: updatedDone }))
    const lessonIndex = track.lessons.findIndex(item => item.id === currentLesson.id)
    const nextLesson = track.lessons[lessonIndex + 1]
+   if (track.id !== 'base' && (!nextLesson || nextLesson.unit !== currentLesson.unit)) {
+    setOpenedLesson(false)
+    setNotice(`Все уроки раздела «${currentLesson.unit}» пройдены. Начинается мини-экзамен по разделу.`)
+    startExam(track.id, 1, 'topic', currentLesson.unit)
+    return
+   }
    if (nextLesson) {
-    setSelectedLesson(nextLesson.id); setLessonAnswer(null); setLessonExplanation(''); setExplanationFeedback(''); setExplanationAccepted(false)
+    setSelectedLesson(nextLesson.id); setLessonAnswer(null); setLessonExplanation(''); setExplanationFeedback(''); setExplanationAccepted(false); setLessonCheckSubmitted(false)
     setNotice(`Урок «${currentLesson.title}» зачтён. Открыт следующий урок.`)
+    window.scrollTo({ top: 0, behavior: 'instant' })
    } else {
     setOpenedLesson(false); setNotice(`Маршрут «${track.name}» завершён. Все уроки этого раздела пройдены.`)
    }
@@ -171,15 +189,32 @@ function App() {
  const startExam = (route: 'oge' | 'ege', variant = 1, kind: 'full' | 'topic' = 'full', topic = '') => {
   const items = buildExam(route, variant, kind, topic)
   if (!items.length) { setNotice('Для выбранного раздела пока нет заданий. Выбери другую тему.'); return }
-  setExamTrack(route); setExamVariant(variant); setExamKind(kind); setSelectedTopic(topic); setExamRunning(true); setExamIndex(0); setAnswers(Array(items.length).fill(-1)); setWrittenAnswers({}); setSelectedPrompts({}); setExamScore(null); setTimeLeft(kind === 'topic' ? 20 * 60 : tracks.find(entry => entry.id === route)!.examMinutes * 60)
+  setExamTrack(route); setExamVariant(variant); setExamKind(kind); setSelectedTopic(topic); setView('exams'); setExamRunning(true); setExamIndex(0); setAnswers(Array(items.length).fill(-1)); setWrittenAnswers({}); setSelectedPrompts({}); setExamScore(null); setTimeLeft(kind === 'topic' ? 20 * 60 : tracks.find(entry => entry.id === route)!.examMinutes * 60)
  }
  const finishExam = useCallback(() => {
   if (examScore !== null) return
   const objective = examQuestions.filter((item): item is ChoiceTask => item.kind === 'choice')
   const correct = examQuestions.reduce((sum, item, index) => sum + (item.kind === 'choice' && answers[index] === item.correct ? 1 : 0), 0)
   const score = objective.length ? Math.round(correct * 100 / objective.length) : 0
-  setExamScore(score); setExamRunning(false); setSaved(value => ({ ...value, lastScore: score }))
- }, [answers, examQuestions, examScore])
+  setExamScore(score); setExamRunning(false); setSaved(value => {
+   if (examKind !== 'topic') return { ...value, lastScore: score }
+   const unitKey = `${examTrack}:${selectedTopic}`
+   if (score >= 75) return { ...value, lastScore: score, passedUnits: [...new Set([...(value.passedUnits ?? []), unitKey])] }
+   const route = tracks.find(item => item.id === examTrack)
+   const unitLessonIds = route?.lessons.filter(item => item.unit === selectedTopic).map(item => item.id) ?? []
+   return { ...value, lastScore: score, done: value.done.filter(id => !unitLessonIds.includes(id)), passedUnits: (value.passedUnits ?? []).filter(key => key !== unitKey) }
+  })
+  if (examKind === 'topic') {
+   setTrackId(examTrack); setView('lessons'); setOpenedLesson(false)
+   if (score < 75) {
+    const first = tracks.find(item => item.id === examTrack)?.lessons.find(item => item.unit === selectedTopic)
+    if (first) setSelectedLesson(first.id)
+    setNotice(`Мини-экзамен: ${score}%. Раздел пока не закреплён. Нужно набрать не менее 75%. Пройди уроки «${selectedTopic}» повторно и сдай экзамен ещё раз.`)
+   } else {
+    setNotice(`Мини-экзамен сдан: ${score}%. Раздел «${selectedTopic}» закреплён. Следующий раздел открыт.`)
+   }
+  }
+ }, [answers, examQuestions, examScore, examKind, examTrack, selectedTopic])
   useEffect(() => {
    if (!examRunning || examScore !== null || timeLeft <= 0) return
    const timer = window.setTimeout(() => { if (timeLeft === 1) finishExam(); else setTimeLeft(timeLeft - 1) }, 1000)
@@ -224,7 +259,7 @@ function App() {
      <PageTitle eyebrow="100 УРОКОВ · 3 МАРШРУТА" title="План подготовки" subtitle="Переходи от понятия к правилу, затем объясняй и применяй его на новом примере."/>
      <div className="tab-row">{tracks.map(item => <button key={item.id} className={trackId === item.id ? 'tab active' : 'tab'} onClick={() => { setTrackId(item.id); setSelectedLesson(item.lessons[0].id); setOpenedLesson(false) }}>{item.short}<span>{item.lessons.length}</span></button>)}</div>
      <div className="lesson-layout"><section className="lesson-list"><div className="track-summary"><div className={'track-icon large ' + track.tone}>{track.icon}</div><div><small>{track.short} · УЧЕБНЫЙ ПЛАН</small><h2>{track.name}</h2><p>{track.description}</p></div><div className="summary-progress"><b>{progressByTrack(track.id)}%</b><span>пройдено</span></div></div><div className="unit-header"><span>ТЕМАТИЧЕСКАЯ ПРОГРАММА · НАЖМИ НА УРОК, ЧТОБЫ ОТКРЫТЬ</span><span>{track.lessons.length} УРОКОВ</span></div>{[...new Set(track.lessons.map(item => item.unit))].map((unit, groupIndex) => <div className="unit-group" key={unit}><div className="unit-title"><span>{String(groupIndex + 1).padStart(2, '0')}</span><b>{unit}</b><small>{track.lessons.filter(item => item.unit === unit).filter(item => saved.done.includes(item.id)).length}/{track.lessons.filter(item => item.unit === unit).length}</small></div>{track.lessons.filter(item => item.unit === unit).map(item => <button key={item.id} disabled={lessonIsLocked(item)} title={lessonIsLocked(item) ? 'Сначала пройди предыдущий урок' : item.title} className={'lesson-row ' + (openedLesson && currentLesson.id === item.id ? 'chosen' : '') + (lessonIsLocked(item) ? ' locked' : '')} onClick={() => openLesson(item, track.id)}><span className={'lesson-number ' + (saved.done.includes(item.id) ? 'finished' : '')}>{saved.done.includes(item.id) ? '✓' : lessonIsLocked(item) ? '🔒' : String(track.lessons.indexOf(item) + 1).padStart(2, '0')}</span><span className="lesson-row-text"><small>{item.unit}</small><b>{item.title}</b></span><span className="lesson-time">{item.time}</span><span className="row-arrow">›</span></button>)}</div>)}</section><aside className="lesson-aside"><div className="aside-card"><div className="eyebrow">МЕТОД РАБОТЫ</div><p><b>1.</b> Разбери понятие и алгоритм.</p><p><b>2.</b> Реши задачу и посмотри объяснение.</p><p><b>3.</b> Объясни правило своими словами.</p><p><b>4.</b> Примени его в другом примере.</p><div className="aside-divider"/><small>Прогресс сохраняется на этом устройстве.</small></div><div className="aside-card target-card"><span>◈</span><b>100 уроков с проверкой понимания</b><p>Всего: 20 базовых занятий, 40 по ОГЭ и 40 по ЕГЭ.</p></div></aside></div>
-     {openedLesson && <div className="lesson-focus-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setOpenedLesson(false) }}><section key={currentLesson.id} className="lesson-detail" role="dialog" aria-modal="true" aria-label={currentLesson.title}><div className="lesson-detail-head"><div><div className="eyebrow">{currentLesson.unit.toUpperCase()} · {currentLesson.time.toUpperCase()}</div><h2>{currentLesson.title}</h2></div><button className="icon-close" onClick={() => setOpenedLesson(false)}>×</button></div><div className="lesson-columns"><div>{currentLesson.text.slice(0, 2).map((paragraph, index) => <p className="lesson-paragraph" key={index}>{paragraph}</p>)}<div className="example-box"><small>РАЗБЕРИ ПРИМЕР</small><p>{currentLesson.example}</p></div><div className="rule-box"><span>✓</span><p><b>АЛГОРИТМ</b>{currentLesson.rule}</p></div><div className="practice-question"><small>ПРИМЕНИ ПРАВИЛО</small><h3>{currentLesson.task}</h3>{currentLesson.choices.map((choice, index) => <button key={choice} aria-pressed={lessonAnswer === index} className={'answer-option ' + (lessonAnswer === index ? index === currentLesson.correct ? 'correct' : 'incorrect' : '')} onClick={() => { setLessonAnswer(index); setExplanationAccepted(false); setExplanationFeedback('') }}>{'АБВ'[index]} <span>{choice}</span></button>)}{lessonAnswer !== null && <div className={'answer-feedback ' + (lessonAnswer === currentLesson.correct ? 'right' : 'wrong')}><b>{lessonAnswer === currentLesson.correct ? 'Верно. Теперь объясни почему.' : 'Проверь правило и попробуй ещё раз.'}</b><p>{currentLesson.rationale}</p></div>}<label className="teachback-label">ОБЪЯСНИ СВОИМИ СЛОВАМИ<textarea value={lessonExplanation} onChange={event => { setLessonExplanation(event.target.value); setExplanationAccepted(false); setExplanationFeedback('') }} placeholder={currentLesson.text[2]} rows={3}/><small className="teachback-hint">Напиши объяснение своими словами. Ответ оценивается по пяти критериям: понимание темы, точность правила, обоснование, применение и полнота.</small></label><button className="subtle-link" type="button" disabled={lessonAnswer !== currentLesson.correct || lessonExplanation.trim().length < 1} onClick={() => { const result = checkLessonExplanation(lessonExplanation, currentLesson); setExplanationAccepted(result.ok); setExplanationFeedback(result.message); setNotice(result.message) }}>Проверить объяснение</button>{explanationFeedback && <pre className={'lesson-notice explanation-score '+(explanationAccepted ? 'success' : '')}>{explanationFeedback}</pre>}<button className="mark-done" disabled={lessonAnswer !== currentLesson.correct || !explanationAccepted} onClick={completeLesson}>Зачесть урок и продолжить <span>→</span></button>{notice && <p className="lesson-notice">{notice}</p>}</div></div><aside className="lesson-aim"><span>ЦЕЛЬ</span><p>{currentLesson.aim}</p><div className="aside-divider"/><span>ПРОВЕРЬ ПОНИМАНИЕ</span><p>{currentLesson.explainPrompt}</p><button onClick={() => go('practice')}>Закрепить в тренажёре →</button></aside></div></section></div>}
+     {openedLesson && <div className="lesson-focus-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setOpenedLesson(false) }}><section key={currentLesson.id} className="lesson-detail" role="dialog" aria-modal="true" aria-label={currentLesson.title}><div className="lesson-detail-head"><div><div className="eyebrow">{currentLesson.unit.toUpperCase()} · {currentLesson.time.toUpperCase()}</div><h2>{currentLesson.title}</h2></div><button className="icon-close" onClick={() => setOpenedLesson(false)}>×</button></div><div className="lesson-columns"><div>{currentLesson.text.slice(0, 2).map((paragraph, index) => <p className="lesson-paragraph" key={index}>{paragraph}</p>)}<div className="example-box"><small>РАЗБЕРИ ПРИМЕР</small><p>{currentLesson.example}</p></div><div className="rule-box"><span>✓</span><p><b>АЛГОРИТМ</b>{currentLesson.rule}</p></div><div className="practice-question"><small>ПРИМЕНИ ПРАВИЛО</small><h3>{currentLesson.task}</h3>{currentLesson.choices.map((choice, index) => <button key={choice} aria-pressed={lessonAnswer === index} className={'answer-option ' + (lessonAnswer === index ? lessonCheckSubmitted ? index === currentLesson.correct ? 'correct' : 'incorrect' : 'selected' : '')} onClick={() => { setLessonAnswer(index); setExplanationAccepted(false); setLessonCheckSubmitted(false); setExplanationFeedback('') }}>{'АБВ'[index]} <span>{choice}</span></button>)}<label className="teachback-label">ОБЪЯСНИ СВОИМИ СЛОВАМИ<textarea value={lessonExplanation} onChange={event => { setLessonExplanation(event.target.value); setExplanationAccepted(false); setExplanationFeedback('') }} placeholder={currentLesson.text[2]} rows={3}/><small className="teachback-hint">Напиши объяснение своими словами. Ответ оценивается по пяти критериям: понимание темы, точность правила, обоснование, применение и полнота.</small></label><button className="primary-btn lesson-check-all" type="button" disabled={lessonAnswer === null || lessonExplanation.trim().length < 1} onClick={checkLessonAll}>Проверить задания</button>{explanationFeedback && <pre className={'lesson-notice explanation-score '+(explanationAccepted ? 'success' : '')}>{explanationFeedback}</pre>}<button className="mark-done" disabled={!explanationAccepted || !lessonCheckSubmitted} onClick={completeLesson}>Зачесть урок и продолжить <span>→</span></button>{notice && <p className="lesson-notice">{notice}</p>}</div></div><aside className="lesson-aim"><span>ЦЕЛЬ</span><p>{currentLesson.aim}</p><div className="aside-divider"/><span>ПРОВЕРЬ ПОНИМАНИЕ</span><p>{currentLesson.explainPrompt}</p><button onClick={() => go('practice')}>Закрепить в тренажёре →</button></aside></div></section></div>}
     </>}
     {view === 'practice' && <>
      <div className="practice-focus-screen"><div className="focus-screen-bar"><span>РУССКИЙ ЯСНО · ПРАКТИКА</span><button onClick={() => go('home')}>Закрыть практику ×</button></div>
