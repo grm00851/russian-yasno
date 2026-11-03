@@ -20,6 +20,7 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -36,6 +37,9 @@ jobs:
       - name: Build site
         run: npm run build
         working-directory: ./Русский_Ясно
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
@@ -48,5 +52,3 @@ jobs:
       - name: Deploy site
         id: deployment
         uses: actions/deploy-pages@v4
-
-# Rebuild Pages with the current repository path after rename.
