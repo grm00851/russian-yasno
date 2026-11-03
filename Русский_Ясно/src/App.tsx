@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type CSSProperties } from 'react'
-import { generateDictation, generatePunctuationPractice, generateSpellingPractice, ogeSourceTexts, egeSourceTexts, officialSources, tracks, totalLessons } from './curriculum'
+import { generateDictation, generatePunctuationPractice, generateSpellingPractice, ogeSourceTexts, egeSourceTexts, officialSources, tracks, totalLessons, type Lesson } from './curriculum'
 import { buildIndependentChoices, independentExamBank } from './examBank'
 import './App.css'
 import './readability.css'
