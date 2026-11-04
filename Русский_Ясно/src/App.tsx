@@ -296,7 +296,13 @@ function App() {
   if (!cloudEmail.trim() || !cloudPassword) { setCloudStatus('Введи электронную почту и пароль.'); return }
   setCloudBusy(true); setCloudStatus('Подключаюсь…')
   try {
-   const result = await cloudRequest(mode === 'signup' ? '/auth/v1/signup' : '/auth/v1/token?grant_type=password', undefined, { method: 'POST', body: JSON.stringify({ email: cloudEmail.trim(), password: cloudPassword }) })
+   // GitHub Pages project sites live under /<repository>/, not at the domain root.
+   // Pass the full Vite base URL so Supabase confirmation links return to the app.
+   const redirectUrl = new URL(import.meta.env.BASE_URL, window.location.origin).toString()
+   const authPath = mode === 'signup'
+    ? `/auth/v1/signup?redirect_to=${encodeURIComponent(redirectUrl)}`
+    : '/auth/v1/token?grant_type=password'
+   const result = await cloudRequest(authPath, undefined, { method: 'POST', body: JSON.stringify({ email: cloudEmail.trim(), password: cloudPassword }) })
    if (!result?.access_token || !result?.refresh_token || !result?.user?.id) {
     setCloudStatus(mode === 'signup' ? 'Аккаунт создан. Если включено подтверждение почты, подтверди адрес и затем войди.' : 'Сервис не вернул активную сессию. Проверь подтверждение почты.')
    } else {
